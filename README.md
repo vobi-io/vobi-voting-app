@@ -56,6 +56,7 @@ user
 Options
 Quesitons
 Category
+სავარაუდო პასუხები რაოდენობა
 ```
 
 ### Pages
