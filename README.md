@@ -39,6 +39,8 @@ username,
 email,
 created,
 activated
+Photo
+Personal number
 ```
 
 #### Voting fields:
