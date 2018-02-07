@@ -69,3 +69,6 @@ detail page url would be localhost:4000/which-is-good-laptop
 
 Report would show on the report:
 1)Mac book - 50% 2)Hp - 30% 3)Samsung 20%
+
+
+Unit test
