@@ -14,4 +14,4 @@ var questionSchema = new Schema({
     showReportInProcess:Boolean
 
 });
-var Question = mongoose.model('question', questionSchema);
+module.exports= mongoose.model('question', questionSchema);

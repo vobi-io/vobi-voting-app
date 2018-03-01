@@ -7,4 +7,4 @@ var optionsSchema = new Schema({
     selected: Boolean
 
 });
-var Option = mongoose.model('option', optionsSchema);
+module.exports=  mongoose.model('option', optionsSchema);

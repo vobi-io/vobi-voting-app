@@ -6,7 +6,6 @@ var bodyParser = require('body-parser');
 var session = require('express-session');
 var cookieParser = require('cookie-parser');
 var cors = require('cors');
-var engines = require('consolidate');
 
 //-->> connect mongoose
 var database = require('./config/database');
@@ -36,12 +35,10 @@ process.on('uncaughtException', function (err) {
     console.log('Caught exception: ' + err);
 });
 
-require('./controllers/routes')(app);
-require('./controllers/users')(app);
-require('./controllers/voting')(app);
-require('./controllers/question')(app);
-
-
+require('./router/routes')(app);
+require('./router/questions')(app);
+require('./router/users')(app);
+require('./router/voting')(app);
 
 app.listen(3000, function () {
     console.log("Express started press ctrl-C to terminate")

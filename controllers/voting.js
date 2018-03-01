@@ -1,67 +1,41 @@
-var mongoose = require('mongoose');
-var fs = require('fs');
-require('../models/voting');
+const Voting = require('../models/voting');
 
-var Voting = mongoose.model('voting');
-var ObjectId = require('mongodb').ObjectID;
-module.exports = function (app) {
-    app.post('/app/vote/get', function (req, res) {
-        var searchObj = {};
-        if (req.body.questionId) {
-            searchObj['questionId'] = req.body.questionId;
+module.exports = {
+    voteGet: async function (req, res) {
+        let searchObj = {};
+        let body = req.body;
+        if (body.questionId) {
+            searchObj['questionId'] = body.questionId;
         }
-        if (req.body.optionId) {
-            searchObj['optionId'] = req.body.optionId;
+        if (body.optionId) {
+            searchObj['optionId'] = body.optionId;
         }
         Voting.find(searchObj, null, {sort: 'name'}, function (err, votings) {
-            if (err) {
-                res.send(err);
-            } else {
-                return res.json(votings);
-            }
+            (err)?res.send(err):res.json(votings);
         })
-    });
-    app.post('/app/vote/checkVoting', function (req, res) {
-
+    },
+    checkVoting: async function (req, res) {
+        let body =  req.body;
         if (req.session.userId) {
-
-            if (!req.body._id) {
+            if (!body._id) {
                 res.json({error: "Question Id Required"});
-            } else {
-                var searchObj = {
-                    questionId: {
-                        '$regex': req.body._id
-                    },
-                    userId: {
-                        '$regex': req.session.userId
-                    }
-                };
-                Voting.find({
-                    questionId: req.body._id,
-                    userId: req.session.userId
-                }, null, null, function (err, vote) {
-                    if (err) {
-                        res.json(err);
-                    } else {
-                        res.json(vote)
-                    }
-
-                });
             }
+            Voting.find({questionId: body._id, userId: req.session.userId}, null, null, function (err, vote) {
+                (err)?res.json(err):res.json(vote);
+            });
         } else {
             res.json({error: "Session Required"});
         }
-    });
-
-    app.post('/app/vote', function (req, res) {
+    },
+    vote: async function (req, res) {
         if (!req.session.userId) {
             res.json({error: "You Are Not Logged in!"})
         } else if (!req.body.options || !req.body.questionId) {
-            res.json({error: "please fill all required inputs"});
+            res.json({error: "Please Fill All Required Inputs"});
         } else {
-            var options = req.body.options;
+            let options = req.body.options;
             options.forEach(function (opt, i) {
-                var voting = new Voting({
+                let voting = new Voting({
                     questionId: req.body.questionId,
                     optionId: opt._id,
                     userId: req.session.userId
@@ -71,61 +45,49 @@ module.exports = function (app) {
                     res.json({success: true})
                 }
             });
-
         }
-    });
-
-    app.post('/app/vote/chartData', function (req, res) {
+    },
+    chartData: async function (req, res) {
         if (!req.body._id) {
-            res.json({error: 'Question id required'})
-        } else {
-            var bodyOptions = req.body.options;
-
-            Voting.find({questionId: req.body._id}, null, null, function (err, voting) {
-                if (err) {
-                    res.json(err);
-                } else {
-                    var result = [];
-                    if (voting.length < 1) {
-                        res.json({chartData: result})
-                    }
-                    var allVotes = voting.length;
-                    if (bodyOptions) {
-                        bodyOptions.forEach(function (opt, i) {
-                            Voting.findOne({
-                                optionId: opt._id
-                            }, null, null, function (err, votings) {
-                                if (err) {
-                                    res.json(err);
-                                } else {
-                                    var length = 0;
-                                    if (votings) {
-                                        if (Array.isArray(votings)) {
-                                            length = votings.length;
-                                        } else {
-                                            length = 1;
-                                        }
-                                    }
-                                    result.push({
-                                        label: opt.name,
-                                        value: length / allVotes * 100
-                                    });
-
-                                    if (i === bodyOptions.length - 1) {
-
-                                        res.json({chartData: result})
-                                    }
-
-                                }
-                            });
-                        });
-                    } else {
-                        res.json({error: "options not found"});
-                    }
-                }
-            });
-
+            res.json({error: 'Question Id Required'})
         }
-    });
+        let bodyOptions = req.body.options;
+        await  Voting.find({questionId: req.body._id}, null, null, function (err, voting) {
+            if (err) {
+                res.json(err);
+            }
+            let result = [];
+            if (voting.length < 1) {
+                res.json({chartData: result})
+            }
+            let allVotes = voting.length;
+            if (bodyOptions) {
+                bodyOptions.forEach(function (opt, i) {
+                    Voting.findOne({optionId: opt._id}, null, null, function (err, votings) {
+                        if (err) {
+                            res.json(err);
+                        }
+                        let length = 0;
+                        if (votings) {
+                            if (Array.isArray(votings)) {
+                                length = votings.length;
+                            } else {
+                                length = 1;
+                            }
+                        }
+                        result.push({
+                            label: opt.name,
+                            value: length / allVotes * 100
+                        });
+                        if (i === bodyOptions.length - 1) {
+                            res.json({chartData: result})
+                        }
+                    });
+                });
+            }else {
+                res.json({error: "options not found"});
+            }
+        });
+    },
 
 };

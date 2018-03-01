@@ -7,4 +7,4 @@ var votingSchema = new Schema({
    userId:String,
    createdAt:Date
 });
-var Voting = mongoose.model('voting', votingSchema);
+module.exports=  mongoose.model('voting', votingSchema);

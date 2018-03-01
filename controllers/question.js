@@ -1,56 +1,44 @@
-var mongoose = require('mongoose');
-var fs = require('fs');
-require('../models/question');
-require('../models/option');
-
-var Question = mongoose.model('question');
-var Option = mongoose.model('option');
-var Voting = mongoose.model('voting');
-var Users = mongoose.model('users');
-
-var ObjectId = require('mongodb').ObjectID;
-module.exports = function (app) {
-
-    app.post('/app/question/get', function (req, res) {
-
-        var searchObj = {
+const Question = require('../models/question');
+const Option = require('../models/option');
+const Users = require('../models/users');
+const ObjectId = require('mongodb').ObjectID;
+module.exports = {
+    questionGet: async function (req, res) {
+        let body = req.body;
+        let searchObj = {
             name: {
-                '$regex': req.body.name || ""
+                '$regex': body.name || ""
             },
             description: {
-                '$regex': req.body.description || ""
+                '$regex': body.description || ""
             }
         };
+        if (body.userName) {
+            await Users.findOne({userName: body.userName}, null, function (err, user) {
+                if (user) {
+                    searchObj['authorId'] = {
+                        '$regex': user._id
+                    };
+                } else {
+                    searchObj['authorId'] = 'notFound';
+                }
 
-        if (req.body.userName) {
-            Users.findOne({userName: req.body.userName}, null, function (err, user) {
-                searchObj['authorId'] = {
-                    '$regex': user._id
-                };
-                Question.find(
-                    searchObj, null, {sort: 'startDate'}, function (err, question) {
-                        if (err) {
-                            res.json(err)
-                        }
-                        res.json(question);
-                    });
+            });
+            await  Question.find(searchObj, null, {sort: 'startDate'}, function (err, question) {
+                (err) ? res.json(err) : res.json(question);
             });
         } else {
-            Question.find(
-                searchObj, null, {sort: 'startDate'}, function (err, question) {
-                    if (err) {
-                        res.json(err)
-                    }
-                    res.json(question);
-                });
+            await Question.find(searchObj, null, {sort: 'startDate'}, function (err, question) {
+                (err) ? res.json(err) : res.json(question);
+            });
         }
-
-    });
-    app.post('/app/question/add', function (req, res) {
-        if (!req.body.name || !req.body.startDate || !req.body.endDate) {
-            res.json({error: "please fill all required inputs"});
+    },
+    questionAdd: async function (req, res) {
+        let body = req.body;
+        if (!body.name || !body.startDate || !body.endDate) {
+            res.json({error: "Please Fill All Required Inputs"});
         }
-        var question = new Question({
+        let question = new Question({
             name: req.body.name,
             created: new Date(),
             startDate: req.body.startDate,
@@ -58,114 +46,99 @@ module.exports = function (app) {
             description: req.body.description,
             authorId: req.session.userId,
             maxValues: req.body.maxValues,
-            showReportInProcess:req.body.showReportInProcess || true
+            showReportInProcess: req.body.showReportInProcess || true
         });
         question.save(function (err, newQuestion) {
-            if (err) {
-                res.send(err);
-            } else {
-                return res.json(newQuestion);
-            }
+            (err) ? res.send(err) : res.json(newQuestion);
         });
 
-    });
-    app.post('/app/question/edit', function (req, res) {
-        if (!req.body._id) {
-            res.json({error: 'id is required'});
-        } else {
-            Question.findOne({
-                _id: req.body._id
-            }, null, {sort: 'name'}, function (err, question) {
-                if (!question) {
-                    res.json({error: 'Question not found'})
-                }
-                question['name'] = req.body.name || question['name'];
-                question['description'] = req.body.description || question['description'];
-                question['startDate'] = req.body.startDate || question['startDate'];
-                question['endDate'] = req.body.endDate || question['endDate'];
-                question['modified'] = new Date();
-                question.save(function (err, quest) {
-                    if (err) {
-                        res.send(err);
-                    } else {
-                        return res.json(quest);
-                    }
-                });
-            });
+    },
+    questionEdit: async function (req, res) {
+        let body = req.body;
+        if (!body._id) {
+            res.json({error: 'Id Is Required'});
         }
-    });
-    app.post('/app/question/delete', function (req, res) {
-        Question.remove({_id: req.body._id},
-            function (err, result) {
-                if (err) return res.json(err);
-                return res.json("Question has been deleted");
+        await Question.findOne({_id: ObjectId(body._id)}, null, {sort: 'name'}, function (err, question) {
+            if (!question) {
+                res.json({error: 'Question not found'})
+            }
+            question['name'] = body.name || question['name'];
+            question['description'] = body.description || question['description'];
+            question['startDate'] = body.startDate || question['startDate'];
+            question['endDate'] = body.endDate || question['endDate'];
+            question['modified'] = new Date();
+            question.save(function (err, quest) {
+                (err) ? res.send(err) : res.json(quest);
             });
-    });
+        });
 
-    app.post('/app/question/option/get', function (req, res) {
-        if (!req.body.questionId && !req.body.questionName) {
+    },
+    questionDelete: async function(req, res){
+       Question.remove({_id: ObjectId(req.body._id)}, function (err, result) {
+                (err)?res.json(err): res.json("Question has been deleted");
+            });
+    },
+
+    questionOptionGet:async function (req, res){
+        let body= req.body;
+        if (!body.questionId && !body.questionName) {
             res.json({error: 'question name or id required'})
         }
-        var searchObj = {};
+        let searchObj = {};
 
-        if (req.body.questionId) {
+        if (body.questionId) {
             searchObj = {'_id': ObjectId(req.body.questionId)};
-        } else if (req.body.questionName) {
-            var tmp = req.body.questionName.replace(/\*/g, '?');
+        } else if (body.questionName) {
+            let tmp = req.body.questionName.replace(/\*/g, '?');
             searchObj = {'name': tmp.replace(/-/g, ' ')};
         }
-        Question.findOne(searchObj, null, null, function (err, question) {
-            if (err) {
-                res.json(err)
-            }
-            if (question)
-                Option.find({'question._id': ObjectId(question._id)}, null, null, function (err, options) {
-                    if (err) {
-                        res.json(err)
-                    }
-                    question['options'] = options;
-                    res.send(question);
-                });
-            else res.json({error: "Question Not found"})
-        });
-
-    });
-    app.post('/app/question/option/add', function (req, res) {
-        if (!req.body.options || !req.body.questionId) {
-            res.json({error: 'questionId and name required'})
+        let question = await Question.findOne(searchObj, null, null, function (err, question) {});
+        if (question)
+            Option.find({'question._id': ObjectId(question._id)}, null, null, function (err, options) {
+                if (err) {
+                    res.json(err)
+                }
+                question['options'] = options;
+                res.send(question);
+            });
+        else res.json({error: "Question Not found"});
+    },
+    questionOptionAdd:async function(req, res){
+        let body = req.body;
+        if (!body.options || !body.questionId) {
+            res.json({error: 'QuestionId And Name Required'})
         }
-        Question.findOne({_id: req.body.questionId}, null, null, function (err, question) {
+       await Question.findOne({_id: req.body.questionId}, null, null, function (err, question) {
             if (err) {
                 res.json(err)
             }
             if (!question) {
                 res.json({error: 'active voting not found'});
             }
-            var options = req.body.options;
+            let options = req.body.options;
             options.forEach(function (opt, i) {
-                    var option = new Option({
+                    let option = new Option({
                         name: opt.name,
                         question: question
                     });
                     option.save();
-                    if (i == options.length - 1) {
+                    if (i === options.length - 1) {
                         res.json({status: true})
                     }
                 }
             );
 
         });
-    });
-    app.post('/app/question/option/edit', function (req, res) {
+    },
+    questionOptionEdit: async function(req, res){
         if (!req.body.options) {
             res.json({error: 'options required!'})
         }
-        var options = req.body.options;
-
-        options.forEach(function (o, i) {
+        let options = req.body.options;
+          options.forEach(await function (o, i) {
             if (!o._id) {
-                Question.findOne({_id: o.questionId}, null, null, function (err, question) {
-                    var option = new Option({
+               Question.findOne({_id: o.questionId}, null, null, function (err, question) {
+                    let option = new Option({
                         name: o.name,
                         question: question
                     });
@@ -180,22 +153,18 @@ module.exports = function (app) {
                     opt.save();
                 });
             }
-            if (i == options.length - 1) {
+            if (i === options.length - 1) {
                 res.json({status: true})
             }
         });
-
-    });
-    app.post('/app/question/option/delete', function (req, res) {
-        Option.remove({_id: req.body._id},
-            function (err, result) {
-                if (err) return res.json(err);
-                return res.json("Option has been deleted");
+    },
+    questionOptionDelete: async function(req, res){
+        Option.remove({_id: ObjectId(req.body._id)}, function (err, result) {
+               (err)?res.json(err): res.json("Option Has Been Deleted");
             });
-    });
+    },
 
-
-    app.post('/app/question/check/authority', function (req, res) {
+    questionCheckAuthority: async function(req, res){
         Question.findOne({_id: ObjectId(req.body._id)}, null, null, function (err, question) {
             if ((question.authorId === req.session.userId) && req.session.userId) {
                 res.json({success: true});
@@ -203,5 +172,6 @@ module.exports = function (app) {
                 res.json({success: false});
             }
         });
-    });
+    }
+
 };
